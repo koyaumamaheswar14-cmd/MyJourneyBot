@@ -6,5 +6,10 @@ telegram:
   bot:
     username: myjourney_DUM_bot
     token: ${TELEGRAM_BOT_TOKEN}
+
 firebase:
-  credentials: "C:/Users/koyau.MAHI/Downloads/myjourney-65ec9-firebase-adminsdk-fbsvc-490c93fb82.json"
+  project-id: ${FIREBASE_PROJECT_ID}
+  private-key-id: ${FIREBASE_PRIVATE_KEY_ID}
+  private-key: ${FIREBASE_PRIVATE_KEY}
+  client-email: ${FIREBASE_CLIENT_EMAIL}
+  client-id: ${FIREBASE_CLIENT_ID}
