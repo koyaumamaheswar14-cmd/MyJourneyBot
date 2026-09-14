@@ -4,11 +4,11 @@
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestClient;
 
 import java.time.Instant;
@@ -19,8 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Component
-public class MyJourneyBot implements CommandLineRunner {
+@RestController
+public class MyJourneyBot {
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
@@ -30,27 +30,15 @@ public class MyJourneyBot implements CommandLineRunner {
     private final UserService userService;
     private final PdfService pdfService;
 
-    /*
-     * Stores the current state of every Telegram user.
-     */
     private final Map<Long, String> userState =
             new HashMap<>();
 
-    /*
-     * Category selected while adding information.
-     */
     private final Map<Long, String> selectedCategory =
             new HashMap<>();
 
-    /*
-     * Category selected for PDF generation.
-     */
     private final Map<Long, String> pdfCategory =
             new HashMap<>();
 
-    /*
-     * Category selected for rename/delete.
-     */
     private final Map<Long, String> manageCategory =
             new HashMap<>();
 
@@ -63,19 +51,34 @@ public class MyJourneyBot implements CommandLineRunner {
             ObjectMapper objectMapper
     ) {
 
-        this.informationService = informationService;
-        this.categoryService = categoryService;
-        this.userService = userService;
-        this.pdfService = pdfService;
-        this.objectMapper = objectMapper;
+        this.informationService =
+                informationService;
 
-        String token = System.getenv("TELEGRAM_BOT_TOKEN");
+        this.categoryService =
+                categoryService;
+
+        this.userService =
+                userService;
+
+        this.pdfService =
+                pdfService;
+
+        this.objectMapper =
+                objectMapper;
+
+
+        String token =
+                System.getenv(
+                        "TELEGRAM_BOT_TOKEN"
+                );
 
         if (token == null || token.isBlank()) {
+
             throw new IllegalStateException(
                     "TELEGRAM_BOT_TOKEN environment variable is not set"
             );
         }
+
 
         this.restClient =
                 RestClient.builder()
@@ -89,100 +92,32 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
     // =========================================================
-    // START BOT
+    // TELEGRAM WEBHOOK
     // =========================================================
 
-    @Override
-    public void run(String... args) {
+    @PostMapping("/telegram/webhook")
+    public ResponseEntity<String> telegramWebhook(
+            @RequestBody JsonNode update
+    ) {
 
-        System.out.println(
-                "🚀 MyJourney Telegram Bot started"
-        );
+        try {
 
-        Thread pollingThread =
-                new Thread(
-                        this::startPolling,
-                        "telegram-polling-thread"
-                );
+            System.out.println(
+                    "📩 Telegram webhook received"
+            );
 
-        pollingThread.start();
-    }
+            handleUpdate(update);
 
+            return ResponseEntity.ok("OK");
 
-    // =========================================================
-    // TELEGRAM POLLING
-    // =========================================================
+        } catch (Exception e) {
 
-    private void startPolling() {
+            System.out.println(
+                    "Webhook error: "
+                            + e.getMessage()
+            );
 
-        long offset = 0;
-
-        while (true) {
-
-            try {
-
-                final long currentOffset = offset;
-
-                String response =
-                        restClient.get()
-                                .uri(uriBuilder ->
-                                        uriBuilder
-                                                .path("getUpdates")
-                                                .queryParam(
-                                                        "offset",
-                                                        currentOffset
-                                                )
-                                                .queryParam(
-                                                        "timeout",
-                                                        30
-                                                )
-                                                .build()
-                                )
-                                .retrieve()
-                                .body(String.class);
-
-                JsonNode root =
-                        objectMapper.readTree(response);
-
-                JsonNode updates =
-                        root.get("result");
-
-                if (updates == null ||
-                        !updates.isArray()) {
-                    continue;
-                }
-
-                for (JsonNode update : updates) {
-
-                    if (update.has("update_id")) {
-
-                        offset =
-                                update.get("update_id")
-                                        .asLong() + 1;
-                    }
-
-                    handleUpdate(update);
-                }
-
-            } catch (Exception e) {
-
-                System.out.println(
-                        "Polling error: "
-                                + e.getMessage()
-                );
-
-                try {
-
-                    Thread.sleep(3000);
-
-                } catch (InterruptedException ex) {
-
-                    Thread.currentThread()
-                            .interrupt();
-
-                    return;
-                }
-            }
+            return ResponseEntity.ok("ERROR");
         }
     }
 
@@ -191,37 +126,37 @@ public class MyJourneyBot implements CommandLineRunner {
     // UPDATE HANDLER
     // =========================================================
 
-    private void handleUpdate(JsonNode update) {
+    private void handleUpdate(
+            JsonNode update
+    ) {
 
         try {
 
-            /*
-             * We only process normal Telegram messages.
-             */
             JsonNode message =
                     update.get("message");
+
 
             if (message == null) {
                 return;
             }
 
+
             JsonNode chat =
                     message.get("chat");
 
-            if (chat == null ||
-                    !chat.has("id")) {
+
+            if (chat == null) {
                 return;
             }
+
 
             long chatId =
                     chat.get("id").asLong();
 
 
-            /*
-             * Save/update Telegram user.
-             */
             JsonNode from =
                     message.get("from");
+
 
             String firstName =
                     from != null &&
@@ -230,6 +165,7 @@ public class MyJourneyBot implements CommandLineRunner {
                             .asText()
                             : "";
 
+
             String lastName =
                     from != null &&
                             from.has("last_name")
@@ -237,12 +173,14 @@ public class MyJourneyBot implements CommandLineRunner {
                             .asText()
                             : null;
 
+
             String username =
                     from != null &&
                             from.has("username")
                             ? from.get("username")
                             .asText()
                             : null;
+
 
             try {
 
@@ -262,27 +200,21 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * Ignore messages without text.
-             */
             if (!message.has("text")) {
                 return;
             }
 
+
             String text =
                     message.get("text")
-                            .asText()
-                            .trim();
-
-            if (text.isBlank()) {
-                return;
-            }
+                            .asText();
 
 
             handleMessage(
                     chatId,
                     text
             );
+
 
         } catch (Exception e) {
 
@@ -305,105 +237,23 @@ public class MyJourneyBot implements CommandLineRunner {
 
         try {
 
-            /*
-             * GLOBAL COMMANDS
-             */
-
             if (text.equals("/start")) {
 
                 clearState(chatId);
 
-                sendMainMenu(chatId);
+                sendMainMenu(
+                        chatId
+                );
 
                 return;
             }
 
-
-            /*
-             * GLOBAL BACK
-             */
-
-            if (text.equals("⬅️ BACK")) {
-
-                clearState(chatId);
-
-                sendMainMenu(chatId);
-
-                return;
-            }
-
-
-            /*
-             * GLOBAL CANCEL
-             */
-
-            if (text.equals("❌ CANCEL")) {
-
-                clearState(chatId);
-
-                sendMainMenu(chatId);
-
-                return;
-            }
-
-
-            /*
-             * GET CURRENT STATE
-             */
-
-            String state =
-                    userState.get(chatId);
-
-
-            /*
-             * =================================================
-             * MAIN MENU ACTIONS
-             * =================================================
-             */
 
             if (text.equals("➕ ADD INFORMATION")) {
 
-                showAddInformationMenu(chatId);
-
-                return;
-            }
-
-
-            if (text.equals("📖 VIEW INFORMATION")) {
-
-                showViewInformation(chatId);
-
-                return;
-            }
-
-
-            if (text.equals("🔍 SEARCH INFORMATION")) {
-
-                userState.put(
-                        chatId,
-                        "SEARCH"
+                showAddInformationMenu(
+                        chatId
                 );
-
-                sendMessage(
-                        chatId,
-                        "🔍 Enter the text you want to search:"
-                );
-
-                return;
-            }
-
-
-            if (text.equals("📄 GENERATE PDF")) {
-
-                showPdfCategories(chatId);
-
-                return;
-            }
-
-
-            if (text.equals("⚙️ MANAGE CATEGORIES")) {
-
-                showManageCategories(chatId);
 
                 return;
             }
@@ -418,18 +268,90 @@ public class MyJourneyBot implements CommandLineRunner {
 
                 sendMessage(
                         chatId,
-                        "📂 Enter the new category name:"
+                        "Enter the new category name:"
                 );
 
                 return;
             }
 
 
-            /*
-             * =================================================
-             * STATE: CREATE CATEGORY
-             * =================================================
-             */
+            if (text.equals("⚙️ MANAGE CATEGORIES")) {
+
+                showManageCategories(
+                        chatId
+                );
+
+                return;
+            }
+
+
+            if (text.equals("📖 VIEW INFORMATION")) {
+
+                showViewInformation(
+                        chatId
+                );
+
+                return;
+            }
+
+
+            if (text.equals("🔍 SEARCH INFORMATION")) {
+
+                userState.put(
+                        chatId,
+                        "SEARCH"
+                );
+
+                sendMessage(
+                        chatId,
+                        "Enter the text you want to search:"
+                );
+
+                return;
+            }
+
+
+            if (text.equals("📄 GENERATE PDF")) {
+
+                showPdfCategories(
+                        chatId
+                );
+
+                return;
+            }
+
+
+            if (text.equals("⬅️ BACK")) {
+
+                clearState(chatId);
+
+                sendMainMenu(
+                        chatId
+                );
+
+                return;
+            }
+
+
+            if (text.equals("❌ CANCEL")) {
+
+                clearState(chatId);
+
+                sendMainMenu(
+                        chatId
+                );
+
+                return;
+            }
+
+
+            String state =
+                    userState.get(chatId);
+
+
+            // =================================================
+            // CREATE CATEGORY
+            // =================================================
 
             if ("CREATE_CATEGORY".equals(state)) {
 
@@ -442,28 +364,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: SELECT CATEGORY
-             * =================================================
-             */
-
-            if ("SELECT_CATEGORY".equals(state)) {
-
-                handleCategorySelection(
-                        chatId,
-                        text
-                );
-
-                return;
-            }
-
-
-            /*
-             * =================================================
-             * STATE: ADD INFORMATION
-             * =================================================
-             */
+            // =================================================
+            // ADD INFORMATION
+            // =================================================
 
             if ("ADD_INFORMATION".equals(state)) {
 
@@ -476,11 +379,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: VIEW CATEGORY
-             * =================================================
-             */
+            // =================================================
+            // VIEW INFORMATION
+            // =================================================
 
             if ("VIEW_CATEGORY".equals(state)) {
 
@@ -493,11 +394,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: SEARCH
-             * =================================================
-             */
+            // =================================================
+            // SEARCH
+            // =================================================
 
             if ("SEARCH".equals(state)) {
 
@@ -510,15 +409,13 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: MANAGE CATEGORY
-             * =================================================
-             */
+            // =================================================
+            // MANAGE CATEGORY SELECTION
+            // =================================================
 
-            if ("MANAGE_CATEGORY".equals(state)) {
+            if ("MANAGE_ACTION".equals(state)) {
 
-                handleManageCategorySelection(
+                handleManageAction(
                         chatId,
                         text
                 );
@@ -527,13 +424,11 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: MANAGE ACTION
-             * =================================================
-             */
+            // =================================================
+            // MANAGE SELECTED ACTION
+            // =================================================
 
-            if ("MANAGE_ACTION".equals(state)) {
+            if ("MANAGE_ACTION_SELECTED".equals(state)) {
 
                 handleManageSelectedAction(
                         chatId,
@@ -544,11 +439,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: RENAME
-             * =================================================
-             */
+            // =================================================
+            // RENAME
+            // =================================================
 
             if ("RENAME_CATEGORY".equals(state)) {
 
@@ -561,11 +454,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: DELETE
-             * =================================================
-             */
+            // =================================================
+            // DELETE
+            // =================================================
 
             if ("DELETE_CATEGORY".equals(state)) {
 
@@ -578,11 +469,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: PDF CATEGORY
-             * =================================================
-             */
+            // =================================================
+            // PDF CATEGORY
+            // =================================================
 
             if ("PDF_CATEGORY".equals(state)) {
 
@@ -595,11 +484,9 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * =================================================
-             * STATE: PDF PERIOD
-             * =================================================
-             */
+            // =================================================
+            // PDF PERIOD
+            // =================================================
 
             if ("PDF_PERIOD".equals(state)) {
 
@@ -612,14 +499,41 @@ public class MyJourneyBot implements CommandLineRunner {
             }
 
 
-            /*
-             * UNKNOWN INPUT
-             */
+            // =================================================
+            // DYNAMIC CATEGORY SELECTION
+            // =================================================
+
+            if (isUserCategory(
+                    chatId,
+                    text
+            )) {
+
+                selectedCategory.put(
+                        chatId,
+                        text
+                );
+
+                userState.put(
+                        chatId,
+                        "ADD_INFORMATION"
+                );
+
+                sendMessage(
+                        chatId,
+                        "Enter the information you want to save under:\n\n"
+                                + "📂 "
+                                + text
+                );
+
+                return;
+            }
+
 
             sendMessage(
                     chatId,
                     "Please select an option from the menu."
             );
+
 
         } catch (Exception e) {
 
@@ -640,7 +554,9 @@ public class MyJourneyBot implements CommandLineRunner {
     // MAIN MENU
     // =========================================================
 
-    private void sendMainMenu(long chatId) {
+    private void sendMainMenu(
+            long chatId
+    ) {
 
         String keyboard =
                 """
@@ -650,7 +566,7 @@ public class MyJourneyBot implements CommandLineRunner {
                     ["📖 VIEW INFORMATION"],
                     ["🔍 SEARCH INFORMATION"],
                     ["📄 GENERATE PDF"],
-                    ["⚙️ MANAGE CATEGORIES"]
+                    ["⬅️ BACK"]
                   ],
                   "resize_keyboard": true,
                   "one_time_keyboard": false
@@ -660,15 +576,14 @@ public class MyJourneyBot implements CommandLineRunner {
         sendKeyboardMessage(
                 chatId,
                 "Welcome to MyJourney 🚀\n\n"
-                        + "Your personal journey information system.\n\n"
-                        + "Choose an option:",
+                        + "Your personal journey information system.",
                 keyboard
         );
     }
 
 
     // =========================================================
-    // ADD INFORMATION MENU
+    // ADD INFORMATION
     // =========================================================
 
     private void showAddInformationMenu(
@@ -676,62 +591,18 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         List<String> categories =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
-        if (categories == null ||
-                categories.isEmpty()) {
 
-            userState.put(
-                    chatId,
-                    "CREATE_CATEGORY"
-            );
+        if (categories.isEmpty()) {
 
             sendMessage(
                     chatId,
                     "You don't have any categories yet.\n\n"
-                            + "📂 Enter your first category name:"
+                            + "Create your first category."
             );
-
-            return;
-        }
-
-
-        String keyboard =
-                buildCategoryKeyboard(
-                        categories,
-                        true,
-                        true
-                );
-
-
-        userState.put(
-                chatId,
-                "SELECT_CATEGORY"
-        );
-
-
-        sendKeyboardMessage(
-                chatId,
-                "📂 Select a category:",
-                keyboard
-        );
-    }
-
-
-    // =========================================================
-    // CATEGORY SELECTION FOR ADD
-    // =========================================================
-
-    private void handleCategorySelection(
-            long chatId,
-            String text
-    ) throws Exception {
-
-        /*
-         * CREATE CATEGORY from this screen.
-         */
-
-        if (text.equals("📂 CREATE CATEGORY")) {
 
             userState.put(
                     chatId,
@@ -740,46 +611,52 @@ public class MyJourneyBot implements CommandLineRunner {
 
             sendMessage(
                     chatId,
-                    "📂 Enter the new category name:"
+                    "Enter the new category name:"
             );
 
             return;
         }
 
 
-        /*
-         * MANAGE CATEGORIES from this screen.
-         */
+        StringBuilder keyboard =
+                new StringBuilder();
 
-        if (text.equals("⚙️ MANAGE CATEGORIES")) {
-
-            showManageCategories(chatId);
-
-            return;
-        }
+        keyboard.append(
+                "{\"keyboard\":["
+        );
 
 
-        /*
-         * Validate actual category.
-         */
+        for (String category :
+                categories) {
 
-        if (!isUserCategory(
-                chatId,
-                text
-        )) {
-
-            sendMessage(
-                    chatId,
-                    "Please select a valid category."
+            keyboard.append(
+                    "[\""
             );
 
-            return;
+            keyboard.append(
+                    escapeJson(category)
+            );
+
+            keyboard.append(
+                    "\"],"
+            );
         }
 
 
-        selectedCategory.put(
-                chatId,
-                text
+        keyboard.append(
+                "[\"📂 CREATE CATEGORY\"],"
+        );
+
+        keyboard.append(
+                "[\"⚙️ MANAGE CATEGORIES\"],"
+        );
+
+        keyboard.append(
+                "[\"⬅️ BACK\"]"
+        );
+
+        keyboard.append(
+                "],\"resize_keyboard\":true}"
         );
 
 
@@ -789,13 +666,10 @@ public class MyJourneyBot implements CommandLineRunner {
         );
 
 
-        sendMessage(
+        sendKeyboardMessage(
                 chatId,
-                "✅ Category selected:\n\n"
-                        + "📂 "
-                        + text
-                        + "\n\n"
-                        + "Now enter the information you want to save:"
+                "Select a category:",
+                keyboard.toString()
         );
     }
 
@@ -824,41 +698,25 @@ public class MyJourneyBot implements CommandLineRunner {
         }
 
 
-        /*
-         * Prevent category names from becoming
-         * Telegram menu commands.
-         */
-
-        if (isReservedButton(categoryName)) {
-
-            sendMessage(
-                    chatId,
-                    "Please choose a different category name."
-            );
-
-            return;
-        }
-
-
         List<String> existing =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (existing != null) {
+        for (String category :
+                existing) {
 
-            for (String category : existing) {
+            if (category.equalsIgnoreCase(
+                    categoryName
+            )) {
 
-                if (category.equalsIgnoreCase(
-                        categoryName
-                )) {
+                sendMessage(
+                        chatId,
+                        "This category already exists."
+                );
 
-                    sendMessage(
-                            chatId,
-                            "This category already exists."
-                    );
-
-                    return;
-                }
+                return;
             }
         }
 
@@ -869,30 +727,19 @@ public class MyJourneyBot implements CommandLineRunner {
         );
 
 
-        /*
-         * Immediately select the newly created category
-         * so the user can enter information.
-         */
-
-        selectedCategory.put(
-                chatId,
-                categoryName
-        );
-
-
-        userState.put(
-                chatId,
-                "ADD_INFORMATION"
-        );
+        clearState(chatId);
 
 
         sendMessage(
                 chatId,
-                "✅ Category created successfully!\n\n"
+                "✅ Category created successfully:\n\n"
                         + "📂 "
                         + categoryName
-                        + "\n\n"
-                        + "Now enter the information you want to save:"
+        );
+
+
+        showAddInformationMenu(
+                chatId
         );
     }
 
@@ -907,13 +754,16 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         String category =
-                selectedCategory.get(chatId);
+                selectedCategory.get(
+                        chatId
+                );
 
 
-        if (category == null ||
-                category.isBlank()) {
+        if (category == null) {
 
-            showAddInformationMenu(chatId);
+            showAddInformationMenu(
+                    chatId
+            );
 
             return;
         }
@@ -939,39 +789,20 @@ public class MyJourneyBot implements CommandLineRunner {
 
         sendMessage(
                 chatId,
-                "✅ Information stored successfully."
+                "✅ Information saved.\n\n"
+                        + "📂 Category: "
+                        + category
+                        + "\n\n"
+                        + "📝 "
+                        + text
         );
 
 
-        /*
-         * Stay in a useful state:
-         * ask whether the user wants to add another item.
-         */
-
-        userState.put(
-                chatId,
-                "ADD_MORE"
-        );
+        clearState(chatId);
 
 
-        String keyboard =
-                """
-                {
-                  "keyboard": [
-                    ["➕ ADD MORE"],
-                    ["📖 VIEW INFORMATION"],
-                    ["⬅️ BACK"]
-                  ],
-                  "resize_keyboard": true,
-                  "one_time_keyboard": false
-                }
-                """;
-
-
-        sendKeyboardMessage(
-                chatId,
-                "What would you like to do next?",
-                keyboard
+        sendMainMenu(
+                chatId
         );
     }
 
@@ -985,11 +816,12 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         List<String> categories =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (categories == null ||
-                categories.isEmpty()) {
+        if (categories.isEmpty()) {
 
             sendMessage(
                     chatId,
@@ -1000,12 +832,32 @@ public class MyJourneyBot implements CommandLineRunner {
         }
 
 
-        String keyboard =
-                buildCategoryKeyboard(
-                        categories,
-                        false,
-                        false
-                );
+        StringBuilder keyboard =
+                new StringBuilder();
+
+        keyboard.append(
+                "{\"keyboard\":["
+        );
+
+
+        for (String category :
+                categories) {
+
+            keyboard.append(
+                    "[\""
+                            + escapeJson(category)
+                            + "\"],"
+            );
+        }
+
+
+        keyboard.append(
+                "[\"⬅️ BACK\"]"
+        );
+
+        keyboard.append(
+                "],\"resize_keyboard\":true}"
+        );
 
 
         userState.put(
@@ -1016,8 +868,8 @@ public class MyJourneyBot implements CommandLineRunner {
 
         sendKeyboardMessage(
                 chatId,
-                "📖 Select a category to view:",
-                keyboard
+                "Select a category to view:",
+                keyboard.toString()
         );
     }
 
@@ -1026,6 +878,18 @@ public class MyJourneyBot implements CommandLineRunner {
             long chatId,
             String category
     ) throws Exception {
+
+        if (category.equals("⬅️ BACK")) {
+
+            clearState(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
+
+            return;
+        }
+
 
         if (!isUserCategory(
                 chatId,
@@ -1048,8 +912,7 @@ public class MyJourneyBot implements CommandLineRunner {
                 );
 
 
-        if (data == null ||
-                data.isEmpty()) {
+        if (data.isEmpty()) {
 
             sendMessage(
                     chatId,
@@ -1059,7 +922,10 @@ public class MyJourneyBot implements CommandLineRunner {
             );
 
             clearState(chatId);
-            sendMainMenu(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
 
             return;
         }
@@ -1072,22 +938,19 @@ public class MyJourneyBot implements CommandLineRunner {
         int count = 1;
 
 
-        for (Map<String, Object> item : data) {
+        for (Map<String, Object> item :
+                data) {
 
             result.append(
                     count
                             + ". "
-                            + String.valueOf(
-                            item.get("text")
-                    )
+                            + item.get("text")
                             + "\n"
             );
 
             result.append(
                     "📅 "
-                            + String.valueOf(
-                            item.get("createdAt")
-                    )
+                            + item.get("createdAt")
                             + "\n\n"
             );
 
@@ -1105,12 +968,15 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
         clearState(chatId);
-        sendMainMenu(chatId);
+
+        sendMainMenu(
+                chatId
+        );
     }
 
 
     // =========================================================
-    // SEARCH
+    // SEARCH INFORMATION
     // =========================================================
 
     private void searchInformation(
@@ -1119,19 +985,7 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         searchText =
-                searchText.trim()
-                        .toLowerCase();
-
-
-        if (searchText.isBlank()) {
-
-            sendMessage(
-                    chatId,
-                    "Please enter something to search."
-            );
-
-            return;
-        }
+                searchText.toLowerCase();
 
 
         List<Map<String, Object>> data =
@@ -1147,45 +1001,39 @@ public class MyJourneyBot implements CommandLineRunner {
         int count = 0;
 
 
-        if (data != null) {
+        for (Map<String, Object> item :
+                data) {
 
-            for (Map<String, Object> item : data) {
-
-                String text =
-                        String.valueOf(
-                                item.get("text")
-                        );
-
-
-                if (text.toLowerCase()
-                        .contains(searchText)) {
-
-                    count++;
-
-
-                    result.append(
-                            count
-                                    + ". "
-                                    + text
-                                    + "\n"
+            String text =
+                    String.valueOf(
+                            item.get("text")
                     );
 
-                    result.append(
-                            "📂 Category: "
-                                    + String.valueOf(
-                                    item.get("category")
-                            )
-                                    + "\n"
-                    );
 
-                    result.append(
-                            "📅 "
-                                    + String.valueOf(
-                                    item.get("createdAt")
-                            )
-                                    + "\n\n"
-                    );
-                }
+            if (text.toLowerCase()
+                    .contains(searchText)) {
+
+                count++;
+
+
+                result.append(
+                        count
+                                + ". "
+                                + text
+                                + "\n"
+                );
+
+                result.append(
+                        "📂 Category: "
+                                + item.get("category")
+                                + "\n"
+                );
+
+                result.append(
+                        "📅 "
+                                + item.get("createdAt")
+                                + "\n\n"
+                );
             }
         }
 
@@ -1194,7 +1042,7 @@ public class MyJourneyBot implements CommandLineRunner {
 
             sendMessage(
                     chatId,
-                    "🔍 No matching information found."
+                    "No matching information found."
             );
 
         } else {
@@ -1208,7 +1056,11 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
         clearState(chatId);
-        sendMainMenu(chatId);
+
+
+        sendMainMenu(
+                chatId
+        );
     }
 
 
@@ -1221,11 +1073,12 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         List<String> categories =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (categories == null ||
-                categories.isEmpty()) {
+        if (categories.isEmpty()) {
 
             sendMessage(
                     chatId,
@@ -1236,36 +1089,64 @@ public class MyJourneyBot implements CommandLineRunner {
         }
 
 
-        String keyboard =
-                buildCategoryKeyboard(
-                        categories,
-                        false,
-                        false
-                );
+        StringBuilder keyboard =
+                new StringBuilder();
+
+        keyboard.append(
+                "{\"keyboard\":["
+        );
+
+
+        for (String category :
+                categories) {
+
+            keyboard.append(
+                    "[\""
+                            + escapeJson(category)
+                            + "\"],"
+            );
+        }
+
+
+        keyboard.append(
+                "[\"⬅️ BACK\"]"
+        );
+
+        keyboard.append(
+                "],\"resize_keyboard\":true}"
+        );
 
 
         userState.put(
                 chatId,
-                "MANAGE_CATEGORY"
+                "MANAGE_ACTION"
         );
 
 
         sendKeyboardMessage(
                 chatId,
-                "⚙️ Select a category to manage:",
-                keyboard
+                "Select a category to manage:",
+                keyboard.toString()
         );
     }
 
 
-    // =========================================================
-    // MANAGE CATEGORY SELECTION
-    // =========================================================
-
-    private void handleManageCategorySelection(
+    private void handleManageAction(
             long chatId,
             String text
     ) throws Exception {
+
+        if (text.equals("⬅️ BACK")) {
+
+            clearState(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
+
+            return;
+        }
+
 
         if (!isUserCategory(
                 chatId,
@@ -1289,7 +1170,7 @@ public class MyJourneyBot implements CommandLineRunner {
 
         userState.put(
                 chatId,
-                "MANAGE_ACTION"
+                "MANAGE_ACTION_SELECTED"
         );
 
 
@@ -1301,40 +1182,33 @@ public class MyJourneyBot implements CommandLineRunner {
                     ["🗑️ DELETE"],
                     ["⬅️ BACK"]
                   ],
-                  "resize_keyboard": true,
-                  "one_time_keyboard": false
+                  "resize_keyboard": true
                 }
                 """;
 
 
         sendKeyboardMessage(
                 chatId,
-                "⚙️ Manage category:\n\n"
+                "Manage category:\n\n"
                         + "📂 "
-                        + text
-                        + "\n\n"
-                        + "Choose an action:",
+                        + text,
                 keyboard
         );
     }
 
-
-    // =========================================================
-    // MANAGE ACTION
-    // =========================================================
 
     private void handleManageSelectedAction(
             long chatId,
             String text
     ) {
 
-        String category =
-                manageCategory.get(chatId);
+        if (text.equals("⬅️ BACK")) {
 
+            clearState(chatId);
 
-        if (category == null) {
-
-            showManageCategoriesSafely(chatId);
+            sendMainMenu(
+                    chatId
+            );
 
             return;
         }
@@ -1349,9 +1223,7 @@ public class MyJourneyBot implements CommandLineRunner {
 
             sendMessage(
                     chatId,
-                    "✏️ Enter the new category name for:\n\n"
-                            + "📂 "
-                            + category
+                    "Enter the new category name:"
             );
 
             return;
@@ -1360,6 +1232,21 @@ public class MyJourneyBot implements CommandLineRunner {
 
         if (text.equals("🗑️ DELETE")) {
 
+            String category =
+                    manageCategory.get(
+                            chatId
+                    );
+
+            if (category == null) {
+
+                showManageCategoriesSafely(
+                        chatId
+                );
+
+                return;
+            }
+
+
             userState.put(
                     chatId,
                     "DELETE_CATEGORY"
@@ -1367,7 +1254,7 @@ public class MyJourneyBot implements CommandLineRunner {
 
             sendMessage(
                     chatId,
-                    "⚠️ To confirm deletion, type the exact category name:\n\n"
+                    "Type the category name to confirm deletion:\n\n"
                             + "📂 "
                             + category
             );
@@ -1383,6 +1270,26 @@ public class MyJourneyBot implements CommandLineRunner {
     }
 
 
+    private void showManageCategoriesSafely(
+            long chatId
+    ) {
+
+        try {
+
+            showManageCategories(
+                    chatId
+            );
+
+        } catch (Exception e) {
+
+            sendMessage(
+                    chatId,
+                    "Unable to load categories."
+            );
+        }
+    }
+
+
     // =========================================================
     // RENAME CATEGORY
     // =========================================================
@@ -1393,12 +1300,16 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         String oldName =
-                manageCategory.get(chatId);
+                manageCategory.get(
+                        chatId
+                );
 
 
         if (oldName == null) {
 
-            showManageCategories(chatId);
+            showManageCategories(
+                    chatId
+            );
 
             return;
         }
@@ -1419,35 +1330,25 @@ public class MyJourneyBot implements CommandLineRunner {
         }
 
 
-        if (isReservedButton(newName)) {
-
-            sendMessage(
-                    chatId,
-                    "Please choose a different category name."
-            );
-
-            return;
-        }
-
-
         List<String> existing =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (existing != null) {
+        for (String category :
+                existing) {
 
-            for (String category : existing) {
+            if (category.equalsIgnoreCase(
+                    newName
+            )) {
 
-                if (!category.equalsIgnoreCase(oldName)
-                        && category.equalsIgnoreCase(newName)) {
+                sendMessage(
+                        chatId,
+                        "This category already exists."
+                );
 
-                    sendMessage(
-                            chatId,
-                            "This category already exists."
-                    );
-
-                    return;
-                }
+                return;
             }
         }
 
@@ -1464,14 +1365,16 @@ public class MyJourneyBot implements CommandLineRunner {
 
         sendMessage(
                 chatId,
-                "✅ Category renamed successfully!\n\n"
+                "✅ Category renamed.\n\n"
                         + oldName
                         + " → "
                         + newName
         );
 
 
-        sendMainMenu(chatId);
+        sendMainMenu(
+                chatId
+        );
     }
 
 
@@ -1485,27 +1388,27 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         String selected =
-                manageCategory.get(chatId);
+                manageCategory.get(
+                        chatId
+                );
 
 
         if (selected == null) {
 
-            showManageCategories(chatId);
+            showManageCategories(
+                    chatId
+            );
 
             return;
         }
 
 
-        /*
-         * Exact match required.
-         */
-
         if (!categoryName.equals(selected)) {
 
             sendMessage(
                     chatId,
-                    "❌ Category name does not match.\n\n"
-                            + "Please type exactly:\n"
+                    "The category name does not match.\n\n"
+                            + "Please type:\n"
                             + selected
             );
 
@@ -1524,17 +1427,19 @@ public class MyJourneyBot implements CommandLineRunner {
 
         sendMessage(
                 chatId,
-                "🗑️ Category deleted successfully:\n\n"
+                "🗑️ Category deleted:\n\n"
                         + selected
         );
 
 
-        sendMainMenu(chatId);
+        sendMainMenu(
+                chatId
+        );
     }
 
 
     // =========================================================
-    // PDF CATEGORY
+    // PDF
     // =========================================================
 
     private void showPdfCategories(
@@ -1542,11 +1447,12 @@ public class MyJourneyBot implements CommandLineRunner {
     ) throws Exception {
 
         List<String> categories =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (categories == null ||
-                categories.isEmpty()) {
+        if (categories.isEmpty()) {
 
             sendMessage(
                     chatId,
@@ -1557,10 +1463,36 @@ public class MyJourneyBot implements CommandLineRunner {
         }
 
 
-        String keyboard =
-                buildPdfCategoryKeyboard(
-                        categories
-                );
+        StringBuilder keyboard =
+                new StringBuilder();
+
+        keyboard.append(
+                "{\"keyboard\":["
+        );
+
+
+        for (String category :
+                categories) {
+
+            keyboard.append(
+                    "[\""
+                            + escapeJson(category)
+                            + "\"],"
+            );
+        }
+
+
+        keyboard.append(
+                "[\"📚 ALL\"],"
+        );
+
+        keyboard.append(
+                "[\"⬅️ BACK\"]"
+        );
+
+        keyboard.append(
+                "],\"resize_keyboard\":true}"
+        );
 
 
         userState.put(
@@ -1571,20 +1503,28 @@ public class MyJourneyBot implements CommandLineRunner {
 
         sendKeyboardMessage(
                 chatId,
-                "📄 Select category for PDF:",
-                keyboard
+                "Select category for PDF:",
+                keyboard.toString()
         );
     }
 
-
-    // =========================================================
-    // SELECT PDF CATEGORY
-    // =========================================================
 
     private void selectPdfCategory(
             long chatId,
             String category
     ) throws Exception {
+
+        if (category.equals("⬅️ BACK")) {
+
+            clearState(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
+
+            return;
+        }
+
 
         if (!category.equals("📚 ALL")
                 && !isUserCategory(
@@ -1623,36 +1563,47 @@ public class MyJourneyBot implements CommandLineRunner {
                     ["ALL"],
                     ["⬅️ BACK"]
                   ],
-                  "resize_keyboard": true,
-                  "one_time_keyboard": false
+                  "resize_keyboard": true
                 }
                 """;
 
 
         sendKeyboardMessage(
                 chatId,
-                "📄 Select time period:",
+                "Select time period:",
                 keyboard
         );
     }
 
-
-    // =========================================================
-    // GENERATE PDF
-    // =========================================================
 
     private void generatePdfByPeriod(
             long chatId,
             String period
     ) throws Exception {
 
+        if (period.equals("⬅️ BACK")) {
+
+            clearState(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
+
+            return;
+        }
+
+
         String category =
-                pdfCategory.get(chatId);
+                pdfCategory.get(
+                        chatId
+                );
 
 
         if (category == null) {
 
-            showPdfCategories(chatId);
+            showPdfCategories(
+                    chatId
+            );
 
             return;
         }
@@ -1694,7 +1645,10 @@ public class MyJourneyBot implements CommandLineRunner {
             );
 
             clearState(chatId);
-            sendMainMenu(chatId);
+
+            sendMainMenu(
+                    chatId
+            );
 
             return;
         }
@@ -1748,7 +1702,7 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
     // =========================================================
-    // FILTER PDF
+    // FILTER PDF DATA
     // =========================================================
 
     private List<Map<String, Object>>
@@ -1762,16 +1716,12 @@ public class MyJourneyBot implements CommandLineRunner {
                 new ArrayList<>();
 
 
-        if (data == null) {
-            return result;
-        }
-
-
         LocalDate today =
                 LocalDate.now();
 
 
-        for (Map<String, Object> item : data) {
+        for (Map<String, Object> item :
+                data) {
 
             String itemCategory =
                     String.valueOf(
@@ -1796,7 +1746,9 @@ public class MyJourneyBot implements CommandLineRunner {
             try {
 
                 Instant instant =
-                        Instant.parse(createdAt);
+                        Instant.parse(
+                                createdAt
+                        );
 
 
                 LocalDate date =
@@ -1806,14 +1758,17 @@ public class MyJourneyBot implements CommandLineRunner {
                                 .toLocalDate();
 
 
-                boolean include;
+                boolean include = false;
 
 
                 switch (period) {
 
                     case "TODAY" ->
                             include =
-                                    date.equals(today);
+                                    date.equals(
+                                            today
+                                    );
+
 
                     case "THIS WEEK" ->
                             include =
@@ -1821,7 +1776,10 @@ public class MyJourneyBot implements CommandLineRunner {
                                             today.minusDays(6)
                                     )
                                             &&
-                                            !date.isAfter(today);
+                                            !date.isAfter(
+                                                    today
+                                            );
+
 
                     case "THIS MONTH" ->
                             include =
@@ -1831,17 +1789,16 @@ public class MyJourneyBot implements CommandLineRunner {
                                             date.getMonth()
                                                     == today.getMonth();
 
+
                     case "ALL" ->
                             include = true;
-
-                    default ->
-                            include = false;
                 }
 
 
                 if (include) {
                     result.add(item);
                 }
+
 
             } catch (Exception ignored) {
             }
@@ -1861,22 +1818,14 @@ public class MyJourneyBot implements CommandLineRunner {
             String text
     ) throws Exception {
 
-        if (text == null ||
-                text.isBlank()) {
-            return false;
-        }
-
-
         List<String> categories =
-                categoryService.getCategories(chatId);
+                categoryService.getCategories(
+                        chatId
+                );
 
 
-        if (categories == null) {
-            return false;
-        }
-
-
-        for (String category : categories) {
+        for (String category :
+                categories) {
 
             if (category.equals(text)) {
                 return true;
@@ -1885,195 +1834,6 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
         return false;
-    }
-
-
-    // =========================================================
-    // BUILD CATEGORY KEYBOARD
-    // =========================================================
-
-    private String buildCategoryKeyboard(
-            List<String> categories,
-            boolean includeCreate,
-            boolean includeManage
-    ) {
-
-        StringBuilder keyboard =
-                new StringBuilder();
-
-        keyboard.append(
-                "{\"keyboard\":["
-        );
-
-
-        boolean first = true;
-
-
-        for (String category : categories) {
-
-            if (category == null ||
-                    category.isBlank()) {
-                continue;
-            }
-
-
-            if (!first) {
-                keyboard.append(",");
-            }
-
-
-            keyboard.append(
-                    "[\""
-                            + escapeJson(category)
-                            + "\"]"
-            );
-
-
-            first = false;
-        }
-
-
-        if (includeCreate) {
-
-            if (!first) {
-                keyboard.append(",");
-            }
-
-            keyboard.append(
-                    "[\"📂 CREATE CATEGORY\"]"
-            );
-
-            first = false;
-        }
-
-
-        if (includeManage) {
-
-            if (!first) {
-                keyboard.append(",");
-            }
-
-            keyboard.append(
-                    "[\"⚙️ MANAGE CATEGORIES\"]"
-            );
-        }
-
-
-        keyboard.append(
-                ",[\"⬅️ BACK\"]"
-        );
-
-
-        keyboard.append(
-                "],\"resize_keyboard\":true,"
-                        + "\"one_time_keyboard\":false}"
-        );
-
-
-        return keyboard.toString();
-    }
-
-
-    // =========================================================
-    // BUILD PDF CATEGORY KEYBOARD
-    // =========================================================
-
-    private String buildPdfCategoryKeyboard(
-            List<String> categories
-    ) {
-
-        StringBuilder keyboard =
-                new StringBuilder();
-
-        keyboard.append(
-                "{\"keyboard\":["
-        );
-
-
-        for (String category : categories) {
-
-            if (category == null ||
-                    category.isBlank()) {
-                continue;
-            }
-
-            keyboard.append(
-                    "[\""
-                            + escapeJson(category)
-                            + "\"],"
-            );
-        }
-
-
-        keyboard.append(
-                "[\"📚 ALL\"],"
-        );
-
-        keyboard.append(
-                "[\"⬅️ BACK\"]"
-        );
-
-
-        keyboard.append(
-                "],\"resize_keyboard\":true,"
-                        + "\"one_time_keyboard\":false}"
-        );
-
-
-        return keyboard.toString();
-    }
-
-
-    // =========================================================
-    // RESERVED BUTTON CHECK
-    // =========================================================
-
-    private boolean isReservedButton(
-            String text
-    ) {
-
-        return text.equals("➕ ADD INFORMATION")
-                || text.equals("📖 VIEW INFORMATION")
-                || text.equals("🔍 SEARCH INFORMATION")
-                || text.equals("📄 GENERATE PDF")
-                || text.equals("⚙️ MANAGE CATEGORIES")
-                || text.equals("📂 CREATE CATEGORY")
-                || text.equals("⬅️ BACK")
-                || text.equals("❌ CANCEL")
-                || text.equals("✏️ RENAME")
-                || text.equals("🗑️ DELETE")
-                || text.equals("📚 ALL")
-                || text.equals("TODAY")
-                || text.equals("THIS WEEK")
-                || text.equals("THIS MONTH")
-                || text.equals("ALL");
-    }
-
-
-    // =========================================================
-    // SHOW MANAGE CATEGORIES SAFELY
-    // =========================================================
-
-    private void showManageCategoriesSafely(
-            long chatId
-    ) {
-
-        try {
-
-            showManageCategories(chatId);
-
-        } catch (Exception e) {
-
-            System.out.println(
-                    "Manage categories error: "
-                            + e.getMessage()
-            );
-
-            sendMessage(
-                    chatId,
-                    "Unable to load categories."
-            );
-        }
     }
 
 
@@ -2112,6 +1872,7 @@ public class MyJourneyBot implements CommandLineRunner {
                     .body(body)
                     .retrieve()
                     .toBodilessEntity();
+
 
         } catch (Exception e) {
 
@@ -2174,6 +1935,7 @@ public class MyJourneyBot implements CommandLineRunner {
                     .retrieve()
                     .toBodilessEntity();
 
+
         } catch (Exception e) {
 
             System.out.println(
@@ -2196,9 +1958,9 @@ public class MyJourneyBot implements CommandLineRunner {
 
         try {
 
-            LinkedMultiValueMap<String, Object>
+            org.springframework.util.LinkedMultiValueMap<String, Object>
                     body =
-                    new LinkedMultiValueMap<>();
+                    new org.springframework.util.LinkedMultiValueMap<>();
 
 
             body.add(
@@ -2209,7 +1971,9 @@ public class MyJourneyBot implements CommandLineRunner {
 
             body.add(
                     "document",
-                    new ByteArrayResource(pdf) {
+                    new org.springframework.core.io.ByteArrayResource(
+                            pdf
+                    ) {
 
                         @Override
                         public String getFilename() {
@@ -2228,6 +1992,7 @@ public class MyJourneyBot implements CommandLineRunner {
                     .retrieve()
                     .toBodilessEntity();
 
+
         } catch (Exception e) {
 
             System.out.println(
@@ -2239,20 +2004,28 @@ public class MyJourneyBot implements CommandLineRunner {
 
 
     // =========================================================
-    // CLEAR STATE
+    // CLEAR USER STATE
     // =========================================================
 
     private void clearState(
             long chatId
     ) {
 
-        userState.remove(chatId);
+        userState.remove(
+                chatId
+        );
 
-        selectedCategory.remove(chatId);
+        selectedCategory.remove(
+                chatId
+        );
 
-        pdfCategory.remove(chatId);
+        pdfCategory.remove(
+                chatId
+        );
 
-        manageCategory.remove(chatId);
+        manageCategory.remove(
+                chatId
+        );
     }
 
 
@@ -2288,4 +2061,5 @@ public class MyJourneyBot implements CommandLineRunner {
                 );
     }
 }
+
 
