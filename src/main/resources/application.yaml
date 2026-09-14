@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: myjourney-bot
+
+telegram:
+  bot:
+    username: myjourney_DUM_bot
+    token: ${TELEGRAM_BOT_TOKEN}
+firebase:
+  credentials: "C:/Users/koyau.MAHI/Downloads/myjourney-65ec9-firebase-adminsdk-fbsvc-490c93fb82.json"
