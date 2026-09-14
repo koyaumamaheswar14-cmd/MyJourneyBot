@@ -11,56 +11,115 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.io.ByteArrayInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 public class FirebaseConfig {
 
-    @Value("${firebase.credentials:}")
-    private String credentialsPath;
+    @Value("${firebase.project-id}")
+    private String projectId;
 
-    @Value("${FIREBASE_CREDENTIALS:}")
-    private String firebaseCredentials;
+    @Value("${firebase.private-key-id}")
+    private String privateKeyId;
+
+    @Value("${firebase.private-key}")
+    private String privateKey;
+
+    @Value("${firebase.client-email}")
+    private String clientEmail;
+
+    @Value("${firebase.client-id}")
+    private String clientId;
 
     @Bean
     public Firestore firestore() throws IOException {
 
         if (FirebaseApp.getApps().isEmpty()) {
 
-            GoogleCredentials credentials;
+            Map<String, Object> serviceAccount =
+                    new HashMap<>();
 
-            if (firebaseCredentials != null
-                    && !firebaseCredentials.isBlank()) {
+            serviceAccount.put(
+                    "type",
+                    "service_account"
+            );
 
-                credentials = GoogleCredentials.fromStream(
-                        new ByteArrayInputStream(
-                                firebaseCredentials.getBytes(
-                                        StandardCharsets.UTF_8
-                                )
-                        )
-                );
+            serviceAccount.put(
+                    "project_id",
+                    projectId
+            );
 
-            } else {
+            serviceAccount.put(
+                    "private_key_id",
+                    privateKeyId
+            );
 
-                FileInputStream serviceAccount =
-                        new FileInputStream(credentialsPath);
+            serviceAccount.put(
+                    "private_key",
+                    privateKey.replace(
+                            "\\n",
+                            "\n"
+                    )
+            );
 
-                credentials =
-                        GoogleCredentials.fromStream(
-                                serviceAccount
-                        );
+            serviceAccount.put(
+                    "client_email",
+                    clientEmail
+            );
 
-                serviceAccount.close();
-            }
+            serviceAccount.put(
+                    "client_id",
+                    clientId
+            );
+
+            serviceAccount.put(
+                    "auth_uri",
+                    "https://accounts.google.com/o/oauth2/auth"
+            );
+
+            serviceAccount.put(
+                    "token_uri",
+                    "https://oauth2.googleapis.com/token"
+            );
+
+            serviceAccount.put(
+                    "auth_provider_x509_cert_url",
+                    "https://www.googleapis.com/oauth2/v1/certs"
+            );
+
+            ObjectMapper mapper =
+                    new ObjectMapper();
+
+            String json =
+                    mapper.writeValueAsString(
+                            serviceAccount
+                    );
+
+            GoogleCredentials credentials =
+                    GoogleCredentials.fromStream(
+                            new ByteArrayInputStream(
+                                    json.getBytes(
+                                            StandardCharsets.UTF_8
+                                    )
+                            )
+                    );
 
             FirebaseOptions options =
                     FirebaseOptions.builder()
-                            .setCredentials(credentials)
+                            .setCredentials(
+                                    credentials
+                            )
+                            .setProjectId(
+                                    projectId
+                            )
                             .build();
 
-            FirebaseApp.initializeApp(options);
+            FirebaseApp.initializeApp(
+                    options
+            );
         }
 
         return FirestoreClient.getFirestore();
