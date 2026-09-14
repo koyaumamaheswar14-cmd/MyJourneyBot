@@ -42,38 +42,15 @@ public class FirebaseConfig {
             Map<String, Object> serviceAccount =
                     new HashMap<>();
 
-            serviceAccount.put(
-                    "type",
-                    "service_account"
-            );
-
-            serviceAccount.put(
-                    "project_id",
-                    projectId
-            );
-
-            serviceAccount.put(
-                    "private_key_id",
-                    privateKeyId
-            );
-
+            serviceAccount.put("type", "service_account");
+            serviceAccount.put("project_id", projectId);
+            serviceAccount.put("private_key_id", privateKeyId);
             serviceAccount.put(
                     "private_key",
-                    privateKey.replace(
-                            "\\n",
-                            "\n"
-                    )
+                    privateKey.replace("\\n", "\n")
             );
-
-            serviceAccount.put(
-                    "client_email",
-                    clientEmail
-            );
-
-            serviceAccount.put(
-                    "client_id",
-                    clientId
-            );
+            serviceAccount.put("client_email", clientEmail);
+            serviceAccount.put("client_id", clientId);
 
             serviceAccount.put(
                     "auth_uri",
@@ -90,13 +67,10 @@ public class FirebaseConfig {
                     "https://www.googleapis.com/oauth2/v1/certs"
             );
 
-            ObjectMapper mapper =
-                    new ObjectMapper();
+            ObjectMapper mapper = new ObjectMapper();
 
             String json =
-                    mapper.writeValueAsString(
-                            serviceAccount
-                    );
+                    mapper.writeValueAsString(serviceAccount);
 
             GoogleCredentials credentials =
                     GoogleCredentials.fromStream(
@@ -109,17 +83,11 @@ public class FirebaseConfig {
 
             FirebaseOptions options =
                     FirebaseOptions.builder()
-                            .setCredentials(
-                                    credentials
-                            )
-                            .setProjectId(
-                                    projectId
-                            )
+                            .setCredentials(credentials)
+                            .setProjectId(projectId)
                             .build();
 
-            FirebaseApp.initializeApp(
-                    options
-            );
+            FirebaseApp.initializeApp(options);
         }
 
         return FirestoreClient.getFirestore();
