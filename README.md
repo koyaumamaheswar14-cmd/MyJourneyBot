@@ -266,40 +266,27 @@ Before deployment:
 
 ### 1. Main Menu
 
-![MyJourney Main Menu](screenshots/main-menu.jpg)
-
-The main menu provides access to adding, viewing, searching, and exporting learning information, along with category management.
+<img src="screenshots/main-menu.jpg" width="350">
 
 ### 2. Category Management
 
-![Category Management](screenshots/category-management.jpg)
-
-Users can create and manage learning categories such as DSA, CP, Internship, and CodeChef.
+<img src="screenshots/category-management.jpg" width="350">
 
 ### 3. Add Information
 
-![Add Information](screenshots/add-information.jpg)
-
-Users can select a category and store learning information, including problem details and links.
+<img src="screenshots/add-information.jpg" width="350">
 
 ### 4. Search Information
 
-![Search Information](screenshots/search-information.jpg)
-
-Users can search stored learning information using keywords and retrieve matching results.
+<img src="screenshots/search-information.jpg" width="350">
 
 ### 5. Generate PDF
 
-![Generate PDF](screenshots/generate-pdf-menu.jpg)
-
-Users can select a category and choose a time period such as Today, This Week, This Month, or All to generate a PDF.
+<img src="screenshots/generate-pdf-menu.jpg" width="350">
 
 ### 6. Generated PDF
 
-![Generated PDF](screenshots/generate-pdf-result.jpg)
-
-The generated PDF is sent directly to the user through the Telegram bot.
-
+<img src="screenshots/generate-pdf-result.jpg" width="350">
 ## Future Enhancements
 
 ### 4-Digit PIN-Based Access Protection
