@@ -268,43 +268,34 @@ Before deployment:
 <tr>
 <td align="center">
 <img src="screenshots/main-menu.jpg" width="250">
-<br>
-<b>1. Main Menu</b>
+<br><b>1. Main Menu</b>
 </td>
-
 <td align="center">
 <img src="screenshots/category-management.jpg" width="250">
-<br>
-<b>2. Category Management</b>
+<br><b>2. Category Management</b>
 </td>
-
 <td align="center">
 <img src="screenshots/add-information.jpg" width="250">
-<br>
-<b>3. Add Information</b>
+<br><b>3. Add Information</b>
 </td>
 </tr>
 
 <tr>
 <td align="center">
 <img src="screenshots/search-information.jpg" width="250">
-<br>
-<b>4. Search Information</b>
+<br><b>4. Search Information</b>
 </td>
-
 <td align="center">
 <img src="screenshots/generate-pdf-menu.jpg" width="250">
-<br>
-<b>5. Generate PDF</b>
+<br><b>5. Generate PDF</b>
 </td>
-
 <td align="center">
 <img src="screenshots/generate-pdf-result.jpg" width="250">
-<br>
-<b>6. Generated PDF</b>
+<br><b>6. Generated PDF</b>
 </td>
 </tr>
 </table>
+
 ## Future Enhancements
 
 ### 4-Digit PIN-Based Access Protection
