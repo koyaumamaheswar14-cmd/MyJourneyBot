@@ -264,33 +264,47 @@ Before deployment:
 5. Build and deploy the Spring Boot application.
 ## 📸 Telegram Bot Screenshots
 
-### 1. Main Menu
+<table>
+<tr>
+<td align="center">
+<img src="screenshots/main-menu.jpg" width="250">
+<br>
+<b>1. Main Menu</b>
+</td>
 
-<img src="screenshots/main-menu.jpg" width="350">
+<td align="center">
+<img src="screenshots/category-management.jpg" width="250">
+<br>
+<b>2. Category Management</b>
+</td>
 
-### 2. Category Management
+<td align="center">
+<img src="screenshots/add-information.jpg" width="250">
+<br>
+<b>3. Add Information</b>
+</td>
+</tr>
 
-<img src="screenshots/category-management.jpg" width="350">
+<tr>
+<td align="center">
+<img src="screenshots/search-information.jpg" width="250">
+<br>
+<b>4. Search Information</b>
+</td>
 
-### 3. Add Information
+<td align="center">
+<img src="screenshots/generate-pdf-menu.jpg" width="250">
+<br>
+<b>5. Generate PDF</b>
+</td>
 
-<img src="screenshots/add-information.jpg" width="350">
-
-### 4. Search Information
-
-<img src="screenshots/search-information.jpg" width="350">
-
-### 5. Generate PDF
-
-<img src="screenshots/generate-pdf-menu.jpg" width="350">
-
-### 6. Generated PDF
-
-<img src="screenshots/generate-pdf-result.jpg" width="350">
-### 6. Generated PDF
-
-<img src="screenshots/generate-pdf-result.jpg" width="350">
-
+<td align="center">
+<img src="screenshots/generate-pdf-result.jpg" width="250">
+<br>
+<b>6. Generated PDF</b>
+</td>
+</tr>
+</table>
 ## Future Enhancements
 
 ### 4-Digit PIN-Based Access Protection
