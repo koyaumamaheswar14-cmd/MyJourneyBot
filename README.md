@@ -287,57 +287,61 @@ Before deployment:
 ### 6. Generated PDF
 
 <img src="screenshots/generate-pdf-result.jpg" width="350">
-### Future Enhancements
+### 6. Generated PDF
+
+<img src="screenshots/generate-pdf-result.jpg" width="350">
+
+## Future Enhancements
 
 ### 4-Digit PIN-Based Access Protection
 
-* Allow users to set a 4-digit PIN.
-* Allow users to update their PIN.
-* Require PIN verification before viewing protected information.
-* Require PIN verification before generating PDF reports.
-* Store PINs securely using hashing such as BCrypt.
+- Allow users to set a 4-digit PIN.
+- Allow users to update their PIN.
+- Require PIN verification before viewing protected information.
+- Require PIN verification before generating PDF reports.
+- Store PINs securely using hashing such as BCrypt.
 
 ### Improved User Management
 
-* Enhanced user profiles.
-* User-specific learning statistics.
-* Personalized learning dashboards.
+- Enhanced user profiles.
+- User-specific learning statistics.
+- Personalized learning dashboards.
 
 ### Learning Analytics
 
-* Track learning progress.
-* Category-wise learning statistics.
-* Daily, weekly, and monthly learning summaries.
+- Track learning progress.
+- Category-wise learning statistics.
+- Daily, weekly, and monthly learning summaries.
 
 ### Learning Reminders
 
-* Schedule learning reminders.
-* Daily and weekly study notifications.
+- Schedule learning reminders.
+- Daily and weekly study notifications.
 
 ### Tags and Advanced Organization
 
-* Add tags to learning information.
-* Filter information using multiple tags and categories.
+- Add tags to learning information.
+- Filter information using multiple tags and categories.
 
 ### Advanced Search
 
-* Search by category, date, keywords, and tags.
-* Improve search and filtering capabilities.
+- Search by category, date, keywords, and tags.
+- Improve search and filtering capabilities.
 
 ### Cloud and Backup Improvements
 
-* Automated data backup.
-* Improved data recovery and synchronization.
+- Automated data backup.
+- Improved data recovery and synchronization.
 
 ### Additional Client Support
 
-* Explore a web or mobile interface for accessing the same learning data.
+- Explore a web or mobile interface for accessing the same learning data.
 
 ### AI-Powered Learning Assistance
 
-* Summarize stored learning information.
-* Generate revision notes.
-* Provide personalized learning suggestions.
+- Summarize stored learning information.
+- Generate revision notes.
+- Provide personalized learning suggestions.
 
 ## Project Objective
 
