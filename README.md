@@ -287,7 +287,7 @@ Before deployment:
 ### 6. Generated PDF
 
 <img src="screenshots/generate-pdf-result.jpg" width="350">
-## Future Enhancements
+### Future Enhancements
 
 ### 4-Digit PIN-Based Access Protection
 
