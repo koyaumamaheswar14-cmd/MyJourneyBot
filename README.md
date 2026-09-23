@@ -262,6 +262,43 @@ Before deployment:
 3. Configure the production Firebase project.
 4. Configure the Telegram bot token.
 5. Build and deploy the Spring Boot application.
+## 📸 Telegram Bot Screenshots
+
+### 1. Main Menu
+
+![MyJourney Main Menu](screenshots/main-menu.jpg)
+
+The main menu provides access to adding, viewing, searching, and exporting learning information, along with category management.
+
+### 2. Category Management
+
+![Category Management](screenshots/category-management.jpg)
+
+Users can create and manage learning categories such as DSA, CP, Internship, and CodeChef.
+
+### 3. Add Information
+
+![Add Information](screenshots/add-information.jpg)
+
+Users can select a category and store learning information, including problem details and links.
+
+### 4. Search Information
+
+![Search Information](screenshots/search-information.jpg)
+
+Users can search stored learning information using keywords and retrieve matching results.
+
+### 5. Generate PDF
+
+![Generate PDF](screenshots/generate-pdf-menu.jpg)
+
+Users can select a category and choose a time period such as Today, This Week, This Month, or All to generate a PDF.
+
+### 6. Generated PDF
+
+![Generated PDF](screenshots/generate-pdf-result.jpg)
+
+The generated PDF is sent directly to the user through the Telegram bot.
 
 ## Future Enhancements
 
