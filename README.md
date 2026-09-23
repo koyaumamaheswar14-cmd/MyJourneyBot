@@ -1,10 +1,4 @@
-Yes — **now I understand exactly what you want**. 👍
 
-You want the README to **render on GitHub like your DevFlow README screenshot**: large title, section headings, bullet points, and formatted architecture. The `#` symbols are only in the source; **GitHub automatically hides them when rendered**.
-
-Copy this entire block into `README.md`:
-
-````markdown
 # MyJourney
 
 MyJourney is a Telegram-based personal learning and knowledge management bot built with Java and Spring Boot. It helps users organize, store, search, retrieve, and export their learning information directly through Telegram.
@@ -334,9 +328,4 @@ The project combines Java, Spring Boot, Telegram Bot API, Firebase, state-based 
 B.Tech – Information Technology
 Vishnu Institute of Technology
 2024–2028
-
-```
-
-After you **commit/push this `README.md` to GitHub**, it will render with **“MyJourney” as a large heading, “Features”, “Tech Stack”, “Architecture”, etc. as section headings**, just like the DevFlow screenshot.
-```
 
